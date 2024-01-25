@@ -1,41 +1,29 @@
-import { parse } from 'csv-parse';
-import fs from 'node:fs';
+import fs from "node:fs";
+import { parse } from "csv-parse";
 
-const csvPath = new URL('./tasks.csv', import.meta.url);
+const __dirname = new URL("tasks.csv", import.meta.url).pathname;
 
-const stream = fs.createReadStream(csvPath);
-
-const csvParse = parse({
-  delimiter: ',',
-  skipEmptyLines: true,
-  fromLine: 2 // skip the header line
-});
-
-async function run() {
-  const linesParse = stream.pipe(csvParse);
-
-  for await (const line of linesParse) {
-    const [title, description] = line;
-
-    await fetch('http://localhost:3333/tasks', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        title,
-        description,
-      })
+const processFile = async () => {
+  const records = [];
+  const parser = fs.createReadStream(__dirname).pipe(
+    parse({
+      delimiter: ",",
+      skipEmptyLines: true,
+      fromLine: 2, // skip the header line
     })
-
-    // Uncomment this line to see the import working in slow motion (open the db.json)
-    // await wait(1000)
+  );
+  for await (const record of parser) {
+    // Work with each record
+    const [title, description] = record;
+    records.push({ title, description });
+    fetch("http://localhost:3333/tasks", {
+      method: "POST",
+      body: JSON.stringify({ title, description }),
+    });
   }
+  return records;
+};
 
-}
-
-run()
-
-function wait(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
+(async () => {
+  const records = await processFile();
+})();
